@@ -1,0 +1,842 @@
+<script>
+
+// Start of Script
+
+function PMT(rate, nper, pv, fv, type) {
+  if (!fv) fv = 0;
+  if (!type) type = 0;
+  if (rate === 0) return -(pv + fv) / nper;
+  const pvif = Math.pow(1 + rate, nper);
+  let pmt = rate * (pv * pvif + fv) / (pvif - 1);
+  if (type === 1) pmt = pmt / (1 + rate);
+  return -pmt;
+}
+
+// Data
+const generalVariables = {
+  interestRate: 0.0725, // 7.25%
+  brokerage: 3000.0,
+  monthsDeferred: 2,
+  managementFee: 360.0,
+  fuelPrice: 2.1,
+  maxGSTClaimable: 6334.0,
+  fuelEfficientLCTLimit: 91387.0,
+  statutoryPercentage: 0.2,
+  tyresChangeInterval: 45000,
+  tyresPerChange: 4,
+};
+
+// Term in Months Conversion
+const termInMonths = {
+  "1 Year": 12,
+  "2 Years": 24,
+  "3 Years": 36,
+  "4 Years": 48,
+  "5 Years": 60,
+};
+
+// Fuel Consumption (L/KM) by Vehicle Category
+const fuelConsumption = {
+  Small: 7,
+  Medium: 8.5,
+  Large: 9.5,
+  "Small SUV": 9,
+  "Large SUV": 12,
+  Luxury: 12,
+  "Electric Vehicle": 0.042,
+  "Plug-in Hybrid Electric Vehicle": 4,
+};
+
+// State Registration Costs
+const stateRegistration = {
+  ACT: 1150,
+  NSW: 1050,
+  NT: 800,
+  QLD: 850,
+  SA: 800,
+  TAS: 600,
+  VIC: 816.5,
+  WA: 800,
+};
+
+// Maintenance Rates (cents per km)
+const maintenanceRates = {
+  Small: 0.034,
+  Medium: 0.035,
+  Large: 0.039,
+  "Small SUV": 0.036,
+  "Large SUV": 0.041,
+  Luxury: 0.045,
+  "Electric Vehicle": 0.042,
+  "Plug-in Hybrid Electric Vehicle": 0.039,
+};
+
+// Tyre Costs
+const tyreCosts = {
+  Small: 200,
+  Medium: 260,
+  Large: 280,
+  "Small SUV": 270,
+  "Large SUV": 300,
+  Luxury: 350,
+  "Electric Vehicle": 350,
+  "Plug-in Hybrid Electric Vehicle": 270,
+};
+
+const residualValuePercentageSTDMin = {
+  12: 0.6563,
+  24: 0.5625,
+  36: 0.4688,
+  48: 0.375,
+  60: 0.2813,
+};
+
+const residualValuePercentageHighKMMin = {
+  12: 0.5063,
+  24: 0.4125,
+  36: 0.3188,
+  48: 0.225,
+  60: 0.1313,
+};
+
+const premiumData = {
+  NSW: {
+    1: { lV: 0, uV: 10000, tp: 1217.68 },
+    2: { lV: 10001, uV: 20000, tp: 1269.86 },
+    3: { lV: 20001, uV: 30000, tp: 1322.04 },
+    4: { lV: 30001, uV: 40000, tp: 1565.58 },
+    5: { lV: 40001, uV: 50000, tp: 1600.37 },
+    6: { lV: 50001, uV: 60000, tp: 1704.74 },
+    7: { lV: 60001, uV: 80000, tp: 2000.46 },
+    8: { lV: 80001, uV: 100000, tp: 2348.38 },
+    9: { lV: 100001, uV: 120000, tp: 2609.3 },
+    10: { lV: 120001, uV: 150000, tp: 2783.26 },
+    11: { lV: 150001, uV: 170000, tp: 2957.21 },
+  },
+  VIC: {
+    1: { lV: 0, uV: 10000, tp: 1262.22 },
+    2: { lV: 10001, uV: 20000, tp: 1316.32 },
+    3: { lV: 20001, uV: 30000, tp: 1342.88 },
+    4: { lV: 30001, uV: 40000, tp: 1622.85 },
+    5: { lV: 40001, uV: 50000, tp: 1658.92 },
+    6: { lV: 50001, uV: 60000, tp: 1767.11 },
+    7: { lV: 60001, uV: 80000, tp: 2073.65 },
+    8: { lV: 80001, uV: 100000, tp: 2434.28 },
+    9: { lV: 100001, uV: 120000, tp: 2704.76 },
+    10: { lV: 120001, uV: 150000, tp: 2885.08 },
+    11: { lV: 150001, uV: 170000, tp: 3065.4 },
+  },
+  QLD: {
+    1: { lV: 0, uV: 10000, tp: 1021.4 },
+    2: { lV: 10001, uV: 20000, tp: 1065.17 },
+    3: { lV: 20001, uV: 30000, tp: 1108.95 },
+    4: { lV: 30001, uV: 40000, tp: 1227.32 },
+    5: { lV: 40001, uV: 50000, tp: 1342.41 },
+    6: { lV: 50001, uV: 60000, tp: 1429.96 },
+    7: { lV: 60001, uV: 80000, tp: 1568.24 },
+    8: { lV: 80001, uV: 100000, tp: 1969.85 },
+    9: { lV: 100001, uV: 120000, tp: 2188.71 },
+    10: { lV: 120001, uV: 150000, tp: 2334.63 },
+    11: { lV: 150001, uV: 170000, tp: 2480.54 },
+  },
+  SA: {
+    1: { lV: 0, uV: 10000, tp: 1041.85 },
+    2: { lV: 10001, uV: 20000, tp: 1086.5 },
+    3: { lV: 20001, uV: 30000, tp: 1131.15 },
+    4: { lV: 30001, uV: 40000, tp: 1339.52 },
+    5: { lV: 40001, uV: 50000, tp: 1369.28 },
+    6: { lV: 50001, uV: 60000, tp: 1458.59 },
+    7: { lV: 60001, uV: 80000, tp: 1711.61 },
+    8: { lV: 80001, uV: 100000, tp: 2009.28 },
+    9: { lV: 100001, uV: 120000, tp: 2232.53 },
+    10: { lV: 120001, uV: 150000, tp: 2381.36 },
+    11: { lV: 150001, uV: 170000, tp: 2530.2 },
+  },
+  NT: {
+    1: { lV: 0, uV: 10000, tp: 1031.62 },
+    2: { lV: 10001, uV: 20000, tp: 1012.55 },
+    3: { lV: 20001, uV: 30000, tp: 1054.17 },
+    4: { lV: 30001, uV: 40000, tp: 1248.35 },
+    5: { lV: 40001, uV: 50000, tp: 1276.09 },
+    6: { lV: 50001, uV: 60000, tp: 1359.32 },
+    7: { lV: 60001, uV: 80000, tp: 1595.11 },
+    8: { lV: 80001, uV: 100000, tp: 1872.53 },
+    9: { lV: 100001, uV: 120000, tp: 2080.58 },
+    10: { lV: 120001, uV: 150000, tp: 2219.29 },
+    11: { lV: 150001, uV: 170000, tp: 2358.0 },
+  },
+  TAS: {
+    1: { lV: 0, uV: 10000, tp: 970.94 },
+    2: { lV: 10001, uV: 20000, tp: 1012.55 },
+    3: { lV: 20001, uV: 30000, tp: 1054.17 },
+    4: { lV: 30001, uV: 40000, tp: 1248.35 },
+    5: { lV: 40001, uV: 50000, tp: 1355.84 },
+    6: { lV: 50001, uV: 60000, tp: 1767.11 },
+    7: { lV: 60001, uV: 80000, tp: 2073.65 },
+    8: { lV: 80001, uV: 100000, tp: 1989.56 },
+    9: { lV: 100001, uV: 120000, tp: 2210.62 },
+    10: { lV: 120001, uV: 150000, tp: 2358.0 },
+    11: { lV: 150001, uV: 170000, tp: 2505.37 },
+  },
+  ACT: {
+    1: { lV: 0, uV: 10000, tp: 929.39 },
+    2: { lV: 10001, uV: 20000, tp: 969.22 },
+    3: { lV: 20001, uV: 30000, tp: 1009.05 },
+    4: { lV: 30001, uV: 40000, tp: 1194.93 },
+    5: { lV: 40001, uV: 50000, tp: 1221.48 },
+    6: { lV: 50001, uV: 60000, tp: 1301.15 },
+    7: { lV: 60001, uV: 80000, tp: 1526.86 },
+    8: { lV: 80001, uV: 100000, tp: 1792.4 },
+    9: { lV: 100001, uV: 120000, tp: 1991.55 },
+    10: { lV: 120001, uV: 150000, tp: 2124.32 },
+    11: { lV: 150001, uV: 170000, tp: 2257.09 },
+  },
+  WA: {
+    1: { lV: 0, uV: 10000, tp: 1031.62 },
+    2: { lV: 10001, uV: 20000, tp: 1075.83 },
+    3: { lV: 20001, uV: 30000, tp: 1120.05 },
+    4: { lV: 30001, uV: 40000, tp: 1326.37 },
+    5: { lV: 40001, uV: 50000, tp: 1355.84 },
+    6: { lV: 50001, uV: 60000, tp: 1444.28 },
+    7: { lV: 60001, uV: 80000, tp: 1583.94 },
+    8: { lV: 80001, uV: 100000, tp: 1989.56 },
+    9: { lV: 100001, uV: 120000, tp: 2210.62 },
+    10: { lV: 120001, uV: 150000, tp: 2358.0 },
+    11: { lV: 150001, uV: 170000, tp: 2505.37 },
+  },
+};
+
+// Insurance Value Categories
+const insuranceValueCategories = [
+  { lV: 0, uV: 10000, category: 1 },
+  { lV: 10001, uV: 20000, category: 2 },
+  { lV: 20001, uV: 30000, category: 3 },
+  { lV: 30001, uV: 40000, category: 4 },
+  { lV: 40001, uV: 50000, category: 5 },
+  { lV: 50001, uV: 60000, category: 6 },
+  { lV: 60001, uV: 70000, category: 7 },
+  { lV: 70001, uV: 80000, category: 7 },
+  { lV: 80001, uV: 90000, category: 8 },
+  { lV: 90001, uV: 100000, category: 8 },
+  { lV: 100001, uV: 110000, category: 9 },
+  { lV: 110001, uV: 120000, category: 9 },
+  { lV: 120001, uV: 130000, category: 10 },
+  { lV: 130001, uV: 140000, category: 10 },
+  { lV: 140001, uV: 150000, category: 10 },
+  { lV: 150001, uV: 160000, category: 11 },
+  { lV: 160001, uV: 170000, category: 11 },
+];
+
+// Stamp Duty Rates by State
+// Function to get insurance category based on value
+function getInsuranceCategory(value) {
+  const matchingCategory = insuranceValueCategories.find(
+    (cat) => value >= cat.lV && value <= cat.uV
+  );
+  return matchingCategory ? matchingCategory.category : null;
+}
+
+function calculateStampDuty(state, value, car_type) {
+  let result = 0;
+  switch (state) {
+  case "ACT":
+    // if car_type is equal to 'Electric Vehicle' or 'Plug-in Hybrid Electric Vehicle' then the stamp duty is 0
+    if (
+      car_type == "Electric Vehicle" ||
+      car_type == "Plug-in Hybrid Electric Vehicle"
+    ) {
+      result = 0;
+      break;
+    }
+    result = value < 45000 ? value * 0.03 : value * 0.05;
+    break;
+  case "NSW":
+    if (value < 45000) {
+      result = value * 0.03;
+    } else {
+      result = 45000 * 0.03 + (value - 45000) * 0.05;
+    }
+    break;
+  case "NT":
+    result = value * 0.03;
+    break;
+  case "QLD":
+    // qld has a flat tax rate ?
+    result = value < 1e5 ? value * 0.03 : value * 0.05;
+    break;
+  case "SA":
+    result = value * 0.04;
+    break;
+  case "TAS":
+    result = value * 0.04;
+    break;
+  case "VIC":
+    result = value * 0.042;
+    break;
+  case "WA":
+    result = value < 40000 ? value * 0.03 : value * 0.06;
+    break;
+  default:
+  }
+  return result;
+}
+
+// Category Items
+const categoryTable = {
+  1: { fixed: 0, rate: 0, medicare: 0, uV: 18200 },
+  2: { fixed: 0, rate: 0.16, medicare: 0.02, uV: 45000 },
+  3: { fixed: 4288, rate: 0.3, medicare: 0.02, uV: 135000 },
+  4: { fixed: 31288, rate: 0.37, medicare: 0.02, uV: 190000 },
+  5: { fixed: 51638, rate: 0.45, medicare: 0.02, uV: Infinity },
+};
+
+function getCategory(taxable) {
+  if (taxable < 18200 + 1) {
+    return 1;
+  } else if (taxable > 18200 && taxable < 45000 + 1) {
+    return 2;
+  } else if (taxable > 45000 && taxable < 135000 + 1) {
+    return 3;
+  } else if (taxable > 135000 && taxable < 190000 + 1) {
+    return 4;
+  } else {
+    return 5;
+  }
+}
+
+function calculateResidualValue(kms, termMonths) {
+  return kms > 29999 ? residualValuePercentageHighKMMin[termMonths] : residualValuePercentageSTDMin[
+    termMonths];
+}
+
+function getTotalPremiumExGST(state, valueCategory) {
+  if (!premiumData[state] || !premiumData[state][valueCategory]) return null;
+  return premiumData[state][valueCategory].tp;
+}
+
+function calculateResults(carTypeInput, leaseTermInput, carCostInput, carKmsDrivenYearlyInput,
+  annualSalaryInput, stateInput, debug = false) {
+
+  // Finance
+  const finance = {
+    registrationCost: stateRegistration[stateInput],
+    stampDuty: calculateStampDuty(stateInput, carCostInput, carTypeInput),
+    get subtotal() {
+      return carCostInput - this.registrationCost - this.stampDuty;
+    },
+    get GST() {
+      return this.subtotal / 11;
+    },
+    get vehicleExGST() {
+      return this.subtotal - this.GST;
+    },
+    get total() {
+      return this.subtotal + this.stampDuty + this.registrationCost;
+    },
+    get claimableGst() {
+      return Math.min(this.GST, generalVariables.maxGSTClaimable);
+    },
+    // -*-*-*-
+    get vehicleAmtFinanced() {
+      return this.total - this.claimableGst;
+    },
+    brokerage: generalVariables.brokerage,
+    get totalFinanced() {
+      return this.vehicleAmtFinanced + this.brokerage;
+    },
+    termMonths: parseInt(leaseTermInput * 12),
+    residualValuePercentage: calculateResidualValue(
+      carKmsDrivenYearlyInput,
+      parseInt(leaseTermInput * 12)
+    ),
+    get residualValue() {
+      return this.vehicleAmtFinanced * this.residualValuePercentage;
+    },
+    interestRate: generalVariables.interestRate,
+    get monthlyRate() {
+      return this.interestRate / 12;
+    },
+    get futureValue() {
+      return (
+        this.totalFinanced *
+        Math.pow(1 + this.monthlyRate, generalVariables.monthsDeferred)
+      );
+    },
+    get leaseRental() {
+      return (
+        -PMT(
+          this.monthlyRate,
+          this.termMonths - generalVariables.monthsDeferred,
+          this.futureValue,
+          -this.residualValue,
+          1
+        ) *
+        ((this.termMonths - generalVariables.monthsDeferred) / this.termMonths)
+      );
+    },
+  };
+
+  // Fuel & Electricity
+  const fuel = {
+    fuelRate: fuelConsumption[carTypeInput],
+    get fuelBudgetMonthly() {
+      if (carTypeInput == "Electric Vehicle") {
+        return (carKmsDrivenYearlyInput * this.fuelRate) / 12;
+      } else {
+        return (
+          (carKmsDrivenYearlyInput / 100) *
+          this.fuelRate *
+          generalVariables.fuelPrice
+        ) / 12;
+      }
+    },
+  };
+
+  // Maintenance
+  const maintenance = {
+    maintenanceRate: maintenanceRates[carTypeInput],
+    get maintenanceBudgetMonthly() {
+      return (carKmsDrivenYearlyInput * this.maintenanceRate) / 12;
+    },
+  };
+
+  // Registration
+  const registration = {
+    annualCost: finance.registrationCost,
+    get monthlyBudget() {
+      return this.annualCost / 12;
+    },
+  };
+
+  // Tyres
+  const tyres = {
+    kmsTotal: (carKmsDrivenYearlyInput / 12) * (leaseTermInput * 12),
+    get setsOfTyres() {
+      return Math.floor(this.kmsTotal / generalVariables.tyresChangeInterval);
+    },
+    tyresCost: tyreCosts[carTypeInput],
+    get tyresCostTotal() {
+      return (
+        this.setsOfTyres * this.tyresCost * generalVariables.tyresPerChange
+      );
+    },
+    get tyresBudgetMonthly() {
+      return this.tyresCostTotal / finance.termMonths;
+    },
+  };
+
+  // Insurance
+  const insurance = {
+    roundedVehicleValue: Math.round(carCostInput / 100) * 100,
+    insuranceCategory: getInsuranceCategory(
+      Math.round(carCostInput / 100) * 100
+    ),
+    get annualPremiumExGST() {
+      return getTotalPremiumExGST(stateInput, this.insuranceCategory);
+    },
+    get monthlyPremiumExGST() {
+      return this.annualPremiumExGST / 12;
+    },
+  };
+
+  // EV Exemption
+  const evExemption = {
+    isEVorPHEV: carTypeInput === "Electric Vehicle" ||
+      carTypeInput === "Plug-in Hybrid Electric Vehicle",
+    QualifiesForExemption: function () {
+      return (
+        this.isEVorPHEV && carCostInput < generalVariables.fuelEfficientLCTLimit
+      );
+    },
+  };
+
+  // Statutory Calculation
+  const statutoryCalculation = {
+    fbtCostbase: finance.subtotal,
+    get annualTaxableFBT() {
+      return evExemption.QualifiesForExemption() ?
+        0 :
+        this.fbtCostbase * generalVariables.statutoryPercentage;
+    },
+    get monthlyTaxableFBT() {
+      return this.annualTaxableFBT / 12;
+    },
+  };
+
+  // Monthly Budget Totals
+  const monthlyBudget = {
+    finance: finance.leaseRental,
+    fuel: fuel.fuelBudgetMonthly,
+    maintenance: maintenance.maintenanceBudgetMonthly,
+    registration: registration.monthlyBudget,
+    tyres: tyres.tyresBudgetMonthly,
+    insurance: insurance.monthlyPremiumExGST,
+    managementFee: generalVariables.managementFee / 12,
+    get total() {
+      return (
+        this.finance +
+        this.fuel +
+        this.maintenance +
+        this.registration +
+        this.tyres +
+        this.insurance +
+        this.managementFee
+      );
+    },
+  };
+
+  // Deductions
+  const deductions = {
+    monthly: {
+      postTax: statutoryCalculation.monthlyTaxableFBT,
+      get preTax() {
+        // console.log(monthlyBudget.total, this.postTax)
+        return monthlyBudget.total - this.postTax / 1.1;
+      },
+    },
+    get annual() {
+      return {
+        postTax: this.monthly.postTax * 12,
+        preTax: this.monthly.preTax * 12,
+      };
+    },
+  };
+
+  // Salary, Tax, and Cost Calculation
+  const salaryTaxCalculation = {
+    packaged: {
+      gross: annualSalaryInput,
+      preTaxDeduction: deductions.annual.preTax,
+      get taxable() {
+        return this.gross - this.preTaxDeduction;
+      },
+      get category() {
+        return getCategory(this.taxable);
+      },
+      get fixed() {
+        return categoryTable[this.category].fixed;
+      },
+      get variableDollars() {
+        return this.category === 1 ?
+          0 :
+          this.taxable - categoryTable[this.category - 1].uV;
+      },
+      get variableRate() {
+        return categoryTable[this.category].rate;
+      },
+      get variableComponent() {
+        return this.variableDollars * this.variableRate;
+      },
+      get medicare() {
+        return categoryTable[this.category].medicare * this.taxable;
+      },
+      get totalTax() {
+        return this.fixed + this.variableComponent + this.medicare;
+      },
+      get taxableLessTax() {
+        return this.taxable - this.totalTax;
+      },
+      postTax: deductions.annual.postTax,
+      get netPay() {
+        return this.taxableLessTax - this.postTax;
+      },
+    },
+    notPackaged: {
+      gross: annualSalaryInput,
+      preTaxDeduction: 0,
+      get taxable() {
+        return this.gross;
+      },
+      get category() {
+        return getCategory(this.taxable);
+      },
+      get fixed() {
+        return categoryTable[this.category].fixed;
+      },
+      get variableDollars() {
+        return this.category === 1 ?
+          0 :
+          this.taxable - categoryTable[this.category - 1].uV;
+      },
+      get variableRate() {
+        return categoryTable[this.category].rate;
+      },
+      get variableComponent() {
+        return this.variableDollars * this.variableRate;
+      },
+      get medicare() {
+        return categoryTable[this.category].medicare * this.taxable;
+      },
+      get totalTax() {
+        return this.fixed + this.variableComponent + this.medicare;
+      },
+      get taxableLessTax() {
+        return this.taxable - this.totalTax;
+      },
+      postTax: 0,
+      get netPay() {
+        return this.taxableLessTax - this.postTax;
+      },
+    },
+    get annualNetCost() {
+      return this.notPackaged.netPay - this.packaged.netPay;
+    },
+  };
+
+  // Net Costs
+  const netCosts = {
+    weekly: salaryTaxCalculation.annualNetCost / 52,
+    fortnightly: salaryTaxCalculation.annualNetCost / 26,
+    monthly: salaryTaxCalculation.annualNetCost / 12,
+    get annual() {
+      return monthlyBudget.total * 1.1 * 12;
+    },
+  };
+
+  // Total Costs calculation remains the same
+  const totalCosts = {
+    weekly: netCosts.annual / 52,
+    fortnightly: netCosts.annual / 26,
+    monthly: netCosts.annual / 12,
+    annual: netCosts.annual,
+    lifeOfLease: netCosts.annual / 12 * finance.termMonths,
+  };
+
+  // Total Savings calculation remains the same
+  const totalSavings = {
+    weekly: totalCosts.weekly - netCosts.weekly,
+    fortnightly: totalCosts.fortnightly - netCosts.fortnightly,
+    monthly: totalCosts.monthly - netCosts.monthly,
+    annual: totalCosts.annual - salaryTaxCalculation.annualNetCost,
+    lifeOfLease: totalCosts.lifeOfLease - netCosts.monthly * finance.termMonths,
+  };
+
+  const output = {
+    cost: {
+      weekly: parseFloat(netCosts.weekly.toFixed(2)),
+      fortnightly: parseFloat(netCosts.fortnightly.toFixed(2)),
+      monthly: parseFloat(netCosts.monthly.toFixed(2)),
+      annual: parseFloat(netCosts.annual.toFixed(2)),
+      // lifeOfLease: netCosts.lifeOfLease,
+    },
+    savings: {
+      weekly: parseFloat(totalSavings.weekly.toFixed(2)),
+      fortnightly: parseFloat(totalSavings.fortnightly.toFixed(2)),
+      monthly: parseFloat(totalSavings.monthly.toFixed(2)),
+      annual: parseFloat(totalSavings.annual.toFixed(2)),
+      lifeOfLease: parseFloat(totalSavings.lifeOfLease.toFixed(2)),
+    },
+  };
+
+  if (debug) {
+    let items = {};
+    const objectsToDebug = {
+      finance,
+      fuel,
+      maintenance,
+      registration,
+      tyres,
+      insurance,
+      evExemption,
+      statutoryCalculation,
+      monthlyBudget,
+      deductions,
+      salaryTaxCalculation,
+      netCosts,
+      totalCosts,
+      totalSavings
+    };
+    Object.entries(objectsToDebug).forEach(([objName, obj]) => {
+      collectProperties(obj, items, objName);
+    });
+    debugOutput({
+      items,
+      padding: 40
+    });
+    console.log(output);
+  }
+  return output;
+}
+
+/* ========= debug ========= */
+function formatCurrency(amount) {
+  return '$' + amount?.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
+}
+
+function debugOutput({ items = {}, padding = 30 } = {}) {
+  console.log("--------------------------------");
+  Object.entries(items).forEach(([key, value]) => {
+    // Format the output with configurable padding
+    console.log(`${key}:`.padEnd(padding) + `${value}`.padEnd(padding));
+  });
+  console.log("--------------------------------");
+}
+
+function collectProperties(obj, items = {}, prefix = '') {
+  for (const [key, value] of Object.entries(obj)) {
+    if (typeof value === 'function') continue;
+    const newKey = prefix ? `${prefix}.${key}` : key;
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      collectProperties(value, items, newKey);
+    } else {
+      items[newKey] = value;
+    }
+  }
+  return items;
+}
+
+
+</script>
+<script>
+    let isCalculatorInitialized = false;
+
+    document.addEventListener("DOMContentLoaded", function () {
+        console.log("DOM Content Loaded");
+
+        setTimeout(() => {
+            if (!isCalculatorInitialized) {
+                console.log("Initializing calculator with delay to ensure elements are available");
+                initializeCalculator();
+                isCalculatorInitialized = true;
+            }
+        }, 100); // Delay to ensure all elements are available
+    });
+
+    function initializeCalculator() {
+        if (typeof calculateResults === 'undefined' || typeof formatCurrency === 'undefined') {
+            setTimeout(initializeCalculator, 100);
+            return;
+        }
+
+        console.log("Calculator functions exist. Proceeding with initialization.");
+
+        // Slider configuration for yearly kilometers
+        const yearlyKmSlider = document.getElementById('yearlyKm');
+        const yearlyKmDisplay = document.getElementById('yearlyKmDisplay');
+
+        if (yearlyKmSlider && yearlyKmDisplay) {
+            yearlyKmDisplay.textContent = parseInt(yearlyKmSlider.value).toLocaleString() + ' km';
+
+            yearlyKmSlider.addEventListener('input', function () {
+                yearlyKmDisplay.textContent = parseInt(this.value).toLocaleString() + ' km';
+                calculateAndUpdate();
+            });
+        }
+
+        // Number inputs configuration (including annualSalary)
+        const numberInputs = ['carCost', 'leaseTerm', 'annualSalary'];
+        numberInputs.forEach(id => {
+            const input = document.getElementById(id);
+            const display = document.getElementById(id + 'Display');
+
+            if (input) {
+                if (display) {
+                    display.textContent = id === 'carCost' || id === 'annualSalary'
+                        ? '$' + Math.ceil(parseFloat(input.value || 0)).toLocaleString()
+                        : Math.ceil(parseFloat(input.value || 0));
+                }
+
+                input.addEventListener('input', function () {
+                    const value = Math.ceil(parseFloat(this.value || 0));
+                    if (display) {
+                        display.textContent = id === 'carCost' || id === 'annualSalary'
+                            ? '$' + value.toLocaleString()
+                            : value;
+                    }
+                    calculateAndUpdate(); // Trigger calculation on input
+                });
+            } else {
+                console.error(`Input not found for id: ${id}`);
+            }
+        });
+
+        // Dropdown event listeners
+        ['carType', 'state'].forEach(id => {
+            const dropdown = document.getElementById(id);
+            if (dropdown) {
+                dropdown.addEventListener('change', calculateAndUpdate);
+            }
+        });
+
+        // Form submission handler to prevent default submission
+        const form = document.getElementById('leaseCalculator');
+        if (form) {
+            form.addEventListener('submit', function (e) {
+                e.preventDefault(); // Prevent the default form submission
+                console.log("Form submission prevented.");
+                calculateAndUpdate(); // Trigger the calculation
+            });
+        }
+
+        // Explicitly handle submit button click to ensure no submission
+        const submitButton = document.querySelector('#leaseCalculator button[type="submit"]');
+        if (submitButton) {
+            submitButton.addEventListener('click', function (e) {
+                e.preventDefault(); // Prevent default button behavior
+                console.log("Submit button click prevented.");
+                calculateAndUpdate(); // Trigger the calculation
+            });
+        }
+
+        calculateAndUpdate(); // Perform the initial calculation
+    }
+
+    function getCurrentValues() {
+        const carCost = Math.ceil(parseFloat(document.getElementById('carCost').value || 0));
+        const leaseTerm = Math.ceil(parseFloat(document.getElementById('leaseTerm').value || 0));
+        const yearlyKm = Math.ceil(parseInt(document.getElementById('yearlyKm').value || 0));
+        const carType = document.getElementById('carType').value || 'Small';
+        const state = document.getElementById('state').value;
+        const annualSalary = Math.ceil(parseFloat(document.getElementById('annualSalary').value || 0)); // Add annualSalary
+
+        if (!carType || !leaseTerm || !state) {
+            console.error("Required dropdowns not selected");
+            return null;
+        }
+
+        return {
+            carType,
+            leaseTerm,
+            carCost,
+            yearlyKm,
+            annualSalary, // Return annualSalary
+            state,
+        };
+    }
+
+    function calculateAndUpdate() {
+        const values = getCurrentValues();
+        if (!values) return;
+
+        const results = calculateResults(
+            values.carType,
+            values.leaseTerm,
+            values.carCost,
+            values.yearlyKm,
+            values.annualSalary, // Pass annualSalary to calculateResults
+            values.state
+        );
+
+        updateDisplayValues(results);
+    }
+
+    function updateDisplayValues(results) {
+        document.getElementById('weeklyCost').textContent = formatCurrency(results.cost.weekly);
+        document.getElementById('fortnightlyCost').textContent = formatCurrency(results.cost.fortnightly);
+        document.getElementById('monthlyCost').textContent = formatCurrency(results.cost.monthly);
+        
+         // Update all annual savings instances
+    document.querySelectorAll('.annual-savings').forEach((element) => {
+        element.textContent = formatCurrency(results.savings.annual);
+    });
+        
+        
+        document.getElementById('annualSavings').textContent = formatCurrency(results.savings.annual);
+        document.getElementById('leaseSavings').textContent = formatCurrency(results.savings.lifeOfLease);
+    }
+
+    function formatCurrency(amount) {
+        const roundedUpAmount = Math.ceil(amount); // Round up to the nearest whole number
+        return '$' + roundedUpAmount.toLocaleString(); // Format without decimals
+    }
+</script>
